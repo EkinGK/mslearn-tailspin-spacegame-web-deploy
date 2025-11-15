@@ -26,12 +26,11 @@ stages:
       inputs:
         version: '$(dotnetSdkVersion)'
 
-    # >>> Add this <<<
+    # Use Node 14 so node-sass can build
     - task: NodeTool@0
       displayName: 'Use Node.js 14.x'
       inputs:
         versionSpec: '14.x'
-    # <<< Add this <<<
 
     - task: Npm@1
       displayName: 'Run npm install'
@@ -73,3 +72,52 @@ stages:
 
     - publish: '$(Build.ArtifactStagingDirectory)'
       artifact: drop
+
+- stage: 'Dev'
+  displayName: 'Deploy to the dev environment'
+  dependsOn: Build
+  condition:  succeeded()
+  jobs:
+  - deployment: Deploy
+    pool:
+      vmImage: 'ubuntu-22.04'
+    environment: dev
+    variables:
+    - group: Release
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - task: AzureWebApp@1
+            displayName: 'Azure App Service Deploy: dev website'
+            inputs:
+              azureSubscription: 'your-subscription'
+              appType: 'webAppLinux'
+              appName: '$(WebAppNameDev)'
+              package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip'
+
+- stage: 'Staging'
+  displayName: 'Deploy to the staging environment'
+  dependsOn: Dev
+  jobs:
+  - deployment: Deploy
+    pool:
+      vmImage: 'ubuntu-22.04'
+    environment: staging
+    variables:
+    - group: 'Release'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          - task: AzureWebApp@1
+            displayName: 'Azure App Service Deploy: staging website'
+            inputs:
+              azureSubscription: 'Azure subscription 1(1)(4fe8aed8-9ba0-4e60-8014-cb5e1d19b9b7)'
+              appType: 'webAppLinux'
+              appName: '$(WebAppNameStaging)'
+              package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip'
