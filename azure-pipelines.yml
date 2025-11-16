@@ -98,16 +98,16 @@ stages:
         arguments: '--configuration $(buildConfiguration) --no-build'
 
 - stage: Deploy
-  displayName: 'Deploy to dev environment'
+  displayName: 'Deploy to staging environment'
   dependsOn: Test
-  condition: succeeded()  
+  condition: succeeded()
   jobs:
-  - deployment: DeployToDev
-    displayName: 'Deploy to dev'
+  - deployment: DeployToStaging
+    displayName: 'Deploy to staging'
     pool:
       name: 'PRO690T'
 
-    environment: dev
+    environment: staging
     variables:
     - group: Release
     strategy:
