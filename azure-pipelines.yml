@@ -6,10 +6,10 @@ variables:
   releaseBranchName: 'release'
 
 stages:
-- stage: 'Build'
+- stage: Build
   displayName: 'Build the web application'
   jobs: 
-  - job: 'Build'
+  - job: Build
     displayName: 'Build job'
     pool:
       name: PRO690Self
@@ -24,7 +24,6 @@ stages:
       inputs:
         version: '$(dotnetSdkVersion)'
 
-    # Use Node 14 so node-sass can build
     - task: NodeTool@0
       displayName: 'Use Node.js 14.x'
       inputs:
@@ -36,7 +35,6 @@ stages:
         command: 'install'
         verbose: false
 
-    # OPTION 1: Install gulp-cli globally so the gulp task can find 'gulp'
     - task: Npm@1
       displayName: 'Install gulp-cli globally'
       inputs:
@@ -78,14 +76,37 @@ stages:
     - publish: '$(Build.ArtifactStagingDirectory)'
       artifact: drop
 
-- stage: 'Dev'
-  displayName: 'Deploy to the dev environment'
+- stage: Test
+  displayName: 'Run tests'
   dependsOn: Build
-  condition:  succeeded()
+  condition: succeeded()
   jobs:
-  - deployment: Deploy
+  - job: Test
+    displayName: 'Test job'
     pool:
       name: PRO690Self
+
+    steps:
+    - download: current
+      artifact: drop
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Run unit tests'
+      inputs:
+        command: 'test'
+        projects: '**/*Tests.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build'
+
+- stage: Deploy
+  displayName: 'Deploy to dev environment'
+  dependsOn: Test
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/release'))
+  jobs:
+  - deployment: DeployToDev
+    displayName: 'Deploy to dev'
+    pool:
+      name: 'PRO690T'
+
     environment: dev
     variables:
     - group: Release
@@ -95,34 +116,11 @@ stages:
           steps:
           - download: current
             artifact: drop
+
           - task: AzureWebApp@1
             displayName: 'Azure App Service Deploy: dev website'
             inputs:
               azureSubscription: 'Azure subscription 1(3)(4fe8aed8-9ba0-4e60-8014-cb5e1d19b9b7)'
               appType: 'webAppLinux'
               appName: '$(WebAppNameDev)'
-              package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip'
-
-- stage: 'Staging'
-  displayName: 'Deploy to the staging environment'
-  dependsOn: Dev
-  jobs:
-  - deployment: Deploy
-    pool:
-      name: 'PRO690T'
-    environment: staging
-    variables:
-    - group: 'Release'
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: drop
-          - task: AzureWebApp@1
-            displayName: 'Azure App Service Deploy: staging website'
-            inputs:
-              azureSubscription: 'Azure subscription 1(4)(4fe8aed8-9ba0-4e60-8014-cb5e1d19b9b7)'
-              appType: 'webAppLinux'
-              appName: '$(WebAppNameStaging)'
               package: '$(Pipeline.Workspace)/drop/$(buildConfiguration)/*.zip'
