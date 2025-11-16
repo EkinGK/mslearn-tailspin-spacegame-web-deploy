@@ -12,7 +12,7 @@ stages:
   - job: 'Build'
     displayName: 'Build job'
     pool:
-      name: PRO690T
+      name: PRO690Self
 
     variables:
       wwwrootDir: 'Tailspin.SpaceGame.Web/wwwroot'
@@ -85,7 +85,7 @@ stages:
   jobs:
   - deployment: Deploy
     pool:
-      name: 'PRO690T'
+      name: PRO690Self
     environment: dev
     variables:
     - group: Release
