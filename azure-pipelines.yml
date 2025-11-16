@@ -36,6 +36,13 @@ stages:
         command: 'install'
         verbose: false
 
+    # OPTION 1: Install gulp-cli globally so the gulp task can find 'gulp'
+    - task: Npm@1
+      displayName: 'Install gulp-cli globally'
+      inputs:
+        command: 'custom'
+        customCommand: 'install -g gulp-cli'
+
     - script: './node_modules/.bin/node-sass $(wwwrootDir) --output $(wwwrootDir)'
       displayName: 'Compile Sass assets'
 
